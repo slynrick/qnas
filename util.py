@@ -256,7 +256,7 @@ def convert_to_tfrecords(data, labels, output_file):
 
     print(f'Generating {output_file}')
 
-    with tf.python_io.TFRecordWriter(output_file) as record_writer:
+    with tf.compat.v1.python_io.TFRecordWriter(output_file) as record_writer:
         for i in range(len(labels)):
             image = data[i]
             image_raw = image.flatten().tostring()
