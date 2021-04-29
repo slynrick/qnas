@@ -12,9 +12,23 @@ import functools
 import os
 
 import tensorflow as tf
+from tensorflow.keras.optimizers import SGD
+from keras.callbacks import EarlyStopping
+import keras.backend as K
+from adabound import AdaboundOptimizer
+from adam2sgd import Adam2SGD, SWATS
 
 from cnn import model, input, hooks, hparam
-
+physical_devices = tf.config.list_physical_devices('GPU')
+try:
+  tf.config.set_logical_device_configuration(
+    physical_devices[0],
+    [tf.config.LogicalDeviceConfiguration(memory_limit=6000)])
+  logical_devices = tf.config.list_logical_devices('GPU')
+except:
+  print('Failed to limit GPU RAM size')
+  # Invalid device or cannot modify logical devices once initialized.
+  pass
 
 class CosineScheme(object):
     """ Class to define cosine retraining scheme from the literature.
@@ -149,10 +163,16 @@ def _model_fn(features, labels, mode, params):
     is_train = (mode == tf.estimator.ModeKeys.TRAIN)
 
     with tf.compat.v1.variable_scope('q_net'):
-        loss, grads_and_vars, predictions = _get_loss_and_grads(is_train=is_train,
-                                                                params=params,
-                                                                features=features,
-                                                                labels=labels)
+        if params.optimizer == 'Adam2SGD':
+            loss, model_params, predictions = _get_loss_and_grads(is_train=is_train,
+                                                                    params=params,
+                                                                    features=features,
+                                                                    labels=labels)
+        else:
+            loss, grads_and_vars, predictions = _get_loss_and_grads(is_train=is_train,
+                                                                    params=params,
+                                                                    features=features,
+                                                                    labels=labels)
         update_ops = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS)
 
     tf.summary.scalar('train_loss', loss)
@@ -167,9 +187,12 @@ def _model_fn(features, labels, mode, params):
 
     train_hooks = [hooks.ExamplesPerSecondHook(params.batch_size, every_n_steps=100)]
 
-    # Create single grouped train op
-    train_op = [optimizer.apply_gradients(grads_and_vars,
-                                          global_step=tf.compat.v1.train.get_global_step())]
+    if params.optimizer == 'Adam2SGD':
+        global_step = tf.compat.v1.train.get_global_step()
+        train_op = [optimizer.get_updates(loss, model_params), global_step.assign(global_step + 1)]
+    else:
+        train_op = [optimizer.apply_gradients(grads_and_vars,
+                                              global_step=tf.compat.v1.train.get_global_step())]
     train_op.extend(update_ops)
     train_op = tf.group(*train_op)
 
@@ -201,6 +224,9 @@ def _evolution_optimizer(optimizer_name, learning_rate, momentum, decay):
         optimizer = tf.compat.v1.train.RMSPropOptimizer(learning_rate=learning_rate,
                                               decay=decay,
                                               momentum=momentum)
+    elif optimizer_name == 'Adam2SGD':
+        optimizer = SWATS(lr=learning_rate, beta_1=0.9, beta_2=0.999,epsilon=1e-9)
+
     else:
         optimizer = tf.compat.v1.train.MomentumOptimizer(learning_rate=learning_rate,
                                                momentum=momentum)
@@ -256,7 +282,11 @@ def _get_loss_and_grads(is_train, params, features, labels):
 
     gradients = tf.gradients(loss, model_params)
 
-    return loss, list(zip(gradients, model_params)), predictions
+    if params.optimizer == 'Adam2SGD':
+        return loss, model_params, predictions
+    else:
+        return loss, list(zip(gradients, model_params)), predictions
+
 
 
 def _set_train_steps(max_steps, save_checkpoints_steps, estimator):
@@ -380,23 +410,25 @@ def train_multi_eval(params, run_config, train_input_fn, eval_input_fns, test_in
                                         config=run_config,
                                         params=params)
 
+    es_hook = tf.estimator.experimental.stop_if_no_decrease_hook(classifier, "loss", 3000)
+
     eval_hook = hooks.SaveBestHook(name='accuracy/value:0', best_metric=best_acc,
                                    checkpoint_dir=best_dir)
 
     train_steps = _set_train_steps(max_steps=params.max_steps,
                                    save_checkpoints_steps=params.save_checkpoints_steps,
                                    estimator=classifier)
-
+    print(train_steps)
     for steps in train_steps:
         classifier.train(input_fn=train_input_fn,
-                         max_steps=steps)
+                         max_steps=steps, hooks=[es_hook])
+
 
         tf.compat.v1.logging.log(level=tf.compat.v1.logging.get_verbosity(),
                        msg='Running evaluation on valid dataset ...')
 
         classifier.evaluate(input_fn=eval_input_fns['valid'],
-                            steps=None,
-                            hooks=[eval_hook])
+                            steps=None, hooks=[eval_hook])
 
         if 'train' in eval_input_fns.keys():
             tf.compat.v1.logging.log(level=tf.compat.v1.logging.get_verbosity(),
@@ -457,7 +489,8 @@ def train_and_eval(data_info, params, fn_dict, net_list, lr_schedule=None, run_t
                                     save_checkpoints_steps=params['save_checkpoints_steps'],
                                     save_summary_steps=params['save_summary_steps'],
                                     save_checkpoints_secs=None,
-                                    keep_checkpoint_max=1)
+                                    keep_checkpoint_max=1
+                                    )
 
     net = model.NetworkGraph(num_classes=data_info.num_classes, mu=0.99)
     filtered_dict = {key: item for key, item in fn_dict.items() if key in net_list}

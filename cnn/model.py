@@ -127,7 +127,7 @@ class ResidualV1(object):
             output tensor
         """
 
-        with tf.variable_scope(name):
+        with tf.compat.v1.variable_scope(name):
 
             tensor = self._conv_fixed_pad(inputs=inputs, kernel_size=self.kernel_size,
                                           filters=self.filters, strides=self.strides,
@@ -225,7 +225,7 @@ class ResidualV1Pr(ResidualV1):
             output tensor.
         """
 
-        with tf.variable_scope(name):
+        with tf.compat.v1.variable_scope(name):
             shortcut = self._projection(inputs, filters=self.filters, name='shortcut')
             shortcut = self._batch_norm(shortcut, is_train, name='bn_s')
 
@@ -436,7 +436,7 @@ class NetworkGraph(object):
 
             i += 1
 
-        shape = (inputs.shape[1] * inputs.shape[2] * inputs.shape[3]).value
+        shape = (inputs.shape[1] * inputs.shape[2] * inputs.shape[3])
         tensor = tf.reshape(inputs, [-1, shape])
 
         logits = FullyConnected(units=self.num_classes)(inputs=tensor, name='linear')
