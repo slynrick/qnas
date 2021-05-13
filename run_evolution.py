@@ -105,6 +105,7 @@ def slave(comm):
             break
 
         results = train.fitness_calculation(**params)
+        print("resultssssss", results)
         # Send results back to master.
         comm.send(results, dest=0, tag=10)
 
