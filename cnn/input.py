@@ -101,7 +101,9 @@ class DataSet(object):
         """
 
         if not threads:
-            if platform.system() == 'Windows':
+            if os.uname().sysname == 'Linux':
+                threads = len(os.sched_getaffinity(0))
+            elif platform.system() == 'Windows':
                 threads = len(psutil.Process().cpu_affinity())
             else:
                 threads = os.cpu_count()
