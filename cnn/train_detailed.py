@@ -19,18 +19,6 @@ import clr_callback
 
 from cnn import model, input, hooks, hparam
 
-physical_devices = tf.config.list_physical_devices('GPU')
-try:
-    tf.config.set_logical_device_configuration(
-        physical_devices[0],
-        [tf.config.LogicalDeviceConfiguration(memory_limit=6000)])
-    logical_devices = tf.config.list_logical_devices('GPU')
-except:
-    print('Failed to limit GPU RAM size')
-    # Invalid device or cannot modify logical devices once initialized.
-    pass
-
-
 class CosineScheme(object):
     """ Class to define cosine retraining scheme from the literature.
 

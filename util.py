@@ -15,7 +15,7 @@ import pickle as pkl
 import re
 import sys
 from shutil import rmtree
-
+import requests
 import numpy as np
 import tensorflow as tf
 import yaml
@@ -200,7 +200,7 @@ def load_yaml(file_path):
     """
 
     with open(file_path, 'r') as f:
-        file = yaml.load(f)
+        file = yaml.safe_load(f)
 
     return file
 
@@ -295,7 +295,11 @@ def download_file(data_path, file_name, source_url):
             os.makedirs(data_path)
 
         print(f'Download from {source_url}.')
-        file_path, _ = urllib.request.urlretrieve(source_url, file_path, _progress)
+        resp = requests.get(source_url, verify=False)
+        with open(file_path, 'wb') as f:
+            f.write(resp.content)
+        
+        #file_path, _ = urllib.request.urlretrieve(source_url, file_path, _progress)
         stat_info = os.stat(file_path)
         print(f'\nSuccessfully downloaded {file_name} {stat_info.st_size} bytes! :)')
     else:

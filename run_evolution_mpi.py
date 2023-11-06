@@ -6,13 +6,35 @@
 import argparse
 import os
 
-import evaluation as evaluation
+from mpi4py import MPI
+
+import evaluation__mpi
 import qnas
 import qnas_config as cfg
+from cnn import train
 from util import check_files, init_log
+import tensorflow as tf
+
+def send_stop_signal(comm):
+    """ Helper function for master to send a stop message to workers, so they can finish their
+        work and stop waiting for messages.
+
+    Args:
+        comm: MPI.COMM_WORLD.
+    """
+
+    for worker in range(1, comm.Get_size()):
+        comm.send('stop', dest=worker, tag=11)
 
 
-def run(**args):
+def master(args, comm):
+    """ Master function -> run the evolution and send parameters of evaluation task to workers.
+
+    Args:
+        args: dict with command-in-line parameters.
+        comm: MPI.COMM_WORLD.
+    """
+
     logger = init_log(args['log_level'], name=__name__)
 
     if not os.path.exists(args['experiment_path']):
@@ -34,10 +56,10 @@ def run(**args):
     config.save_params_logfile()
 
     # Evaluation function for QNAS (train CNN and return validation accuracy)
-    eval_f = evaluation.EvalPopulation(params=config.train_spec,
+    eval_f = evaluation__mpi.EvalPopulation(params=config.train_spec,
                                        data_info=config.data_info,
                                        fn_dict=config.fn_dict,
-                                       log_level=config.train_spec['log_level'])
+                                       log_level=config.train_spec['log_level'], new_fn_dict=config.fn_new_dict)
 
     qnas_cnn = qnas.QNAS(eval_f, config.train_spec['experiment_path'],
                          log_file=config.files_spec['log_file'],
@@ -56,6 +78,48 @@ def run(**args):
     logger.info(f"Starting evolution ...")
     qnas_cnn.evolve()
 
+    send_stop_signal(comm)
+
+
+def slave(comm):
+    """ Worker function -> in a loop: waits for parameters from master, trains a network and
+        send the results back;
+
+    Args:
+        comm: MPI.COMM_WORLD.
+    """
+
+    def check_stop():
+        """ Check if message is a *stop* message to end task."""
+
+        if type(params) == str:
+            if params == 'stop':
+                return True
+
+    while True:
+        # Waits for master to send parameters
+        params = comm.recv(source=0, tag=11)
+
+        if check_stop():
+            # If master sends stop message, end things up.
+            break
+
+        results = train.fitness_calculation(**params)
+        # Send results back to master.
+        comm.send(results, dest=0, tag=10)
+
+
+def main(**args):
+
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+
+    if rank == 0:
+        master(args, comm)
+    else:
+        slave(comm)
+
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
@@ -73,4 +137,4 @@ if __name__ == '__main__':
 
     arguments = parser.parse_args()
 
-    run(**vars(arguments))
+    main(**vars(arguments))

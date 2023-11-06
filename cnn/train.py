@@ -15,9 +15,11 @@ from logging import addLevelName
 
 import tensorflow as tf
 
+from tensorflow.python.util import deprecation
+deprecation._PRINT_DEPRECATION_WARNINGS = False
+
 from cnn import model, input, hparam
 from cnn.hooks import GetBestHook, TimeOutHook
-
 
 TRAIN_TIMEOUT = 5400
 
@@ -190,11 +192,13 @@ def train_and_eval(params, run_config, train_input_fn, eval_input_fn):
         classifier.evaluate(input_fn=eval_input_fn,
                             steps=None,
                             hooks=[eval_hook])
+    
+    del classifier
 
     return best_acc[0]
 
 
-def fitness_calculation(id_num, data_info, params, fn_dict, net_list):
+def fitness_calculation(id_num, data_info, params, fn_dict, net_list, selected_gpu, return_val):
     """ Train and evaluate a model using evolved parameters.
 
     Args:
@@ -204,18 +208,20 @@ def fitness_calculation(id_num, data_info, params, fn_dict, net_list):
             hyperparameters.
         fn_dict: dict with definitions of the possible layers (name and parameters).
         net_list: list with names of layers defining the network, in the order they appear.
+        selected_gpu: gpu selected for processing
 
     Returns:
         accuracy of the model for the validation set.
     """
 
-    os.environ['TF_SYNC_ON_FINISH'] = '0'
-    os.environ['TF_ENABLE_WINOGRAD_NONFUSED'] = '1'
-    if params['log_level'] == 'INFO':
-        addLevelName(25, 'INFO1')
-        tf.compat.v1.logging.set_verbosity(25)
-    elif params['log_level'] == 'DEBUG':
-        tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
+    #os.environ['TF_SYNC_ON_FINISH'] = '0'
+    #os.environ['TF_ENABLE_WINOGRAD_NONFUSED'] = '1'
+    # if params['log_level'] == 'INFO':
+    #     addLevelName(25, 'INFO1')
+    #     tf.compat.v1.logging.set_verbosity(25)
+    # elif params['log_level'] == 'DEBUG':
+    #     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
+
 
     model_path = os.path.join(params['experiment_path'], id_num)
 
@@ -224,8 +230,7 @@ def fitness_calculation(id_num, data_info, params, fn_dict, net_list):
                                  intra_op_parallelism_threads=params['threads'],
                                  inter_op_parallelism_threads=params['threads'],
                                  gpu_options=tf.compat.v1.GPUOptions(force_gpu_compatible=True,
-                                                           allow_growth=True))
-
+                                                           allow_growth=True, visible_device_list=selected_gpu))
     config = tf.estimator.RunConfig(session_config=sess_config,
                                     model_dir=model_path,
                                     save_checkpoints_steps=params['save_checkpoints_steps'],
@@ -269,26 +274,25 @@ def fitness_calculation(id_num, data_info, params, fn_dict, net_list):
                        f'structure:\n{net_list}')
 
     try:
-        accuracy = train_and_eval(params=hparams, run_config=config,
+        return_val.value = train_and_eval(params=hparams, run_config=config,
                                   train_input_fn=train_input_fn,
                                   eval_input_fn=eval_input_fn)
     except tf.compat.v1.train.NanLossDuringTrainingError:
         tf.compat.v1.logging.log(level=tf.compat.v1.logging.get_verbosity(),
                        msg=f'Model diverged with NaN loss...')
-        return 0
+        return_val.value=0
     except ValueError:
         tf.compat.v1.logging.log(level=tf.compat.v1.logging.get_verbosity(),
                        msg=f'Model is possibly incorrect in dimensions. '
                            f'Negative dimensions are not allowed')
-        return 0
+        return_val.value=0
     except TimeoutError:
         tf.compat.v1.logging.log(level=tf.compat.v1.logging.get_verbosity(),
                        msg=f'Model {id_num} took too long to train! '
                        f'Timeout = {TRAIN_TIMEOUT:,} seconds.')
-        return 0
+        return_val.value=0
     except tf.errors.ResourceExhaustedError:
         tf.compat.v1.logging.log(level=tf.compat.v1.logging.get_verbosity(),
                        msg=f'Model is probably too large... Resource Exhausted Error!')
-        return 0
+        return_val.value=0
 
-    return accuracy

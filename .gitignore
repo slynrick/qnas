@@ -108,3 +108,8 @@ ENV/
 
 # Visual Studio Code files
 .vscode
+
+
+cifar*/
+my_exp*/
+tf_record*/

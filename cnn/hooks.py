@@ -15,7 +15,6 @@ import tensorflow as tf
 from tensorflow.python.platform import tf_logging
 from tensorflow.python.training import basic_session_run_hooks, session_run_hook
 
-
 def _delete_old_files(path, keep_model=False, model_id=''):
     """ Delete old model files (model.ckpt-*.data, model.ckpt-*.meta, model.ckpt-*.index).
 

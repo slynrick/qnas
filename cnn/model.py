@@ -12,7 +12,6 @@
 
 import tensorflow as tf
 
-
 class ConvBlock(object):
     """ Convolutional Block with Conv -> BatchNorm -> ReLU """
     def __init__(self, kernel, filters, strides, mu, epsilon):
