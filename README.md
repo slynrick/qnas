@@ -22,7 +22,6 @@ The specific versions that we used in our runs are:
 ```
 pyyaml==3.13
 numpy==last version
-mpi4py==3.0.0
 tensorflow==2.3.0
 psultil
 ```
@@ -55,11 +54,7 @@ The script `run_dataset_prep.py` prepares the dataset, as described in the paper
 Here's an example of how to prepare the CIFAR-10 dataset limited to 10k examples for training and validation:
 
 ```shell script
-python run_dataset_prep.py \
-    --data_path cifar10 \
-    --output_folder cifar_tfr_10000 \
-    --num_classes 10 \
-    --limit_data 10000
+python run_dataset_prep.py --data_path cifar10 --output_folder cifar_tfr_10000 --num_classes 10 --limit_data 10000
 ```
 
 At the end of the process, the folder `cifar10/cifar_tfr_10000` has the following files:
@@ -75,12 +70,7 @@ The tfrecords files contains the images and labels, `data_info.txt` includes bas
 This example shows how to prepare the CIFAR-100 dataset, with all the available training examples:
 
 ```shell script
-python run_dataset_prep.py \
-    --data_path cifar100 \
-    --output_folder cifar_tfr \
-    --num_classes 100 \
-    --label_mode fine \
-    --limit_data 0
+python run_dataset_prep.py --data_path cifar100 --output_folder cifar_tfr --num_classes 100 --label_mode fine --limit_data 0
 ```
 
 Run `python run_dataset_prep.py --help` for additional parameter details.
@@ -174,12 +164,7 @@ It is also possible to continue a finished evolution process. Note that all the 
   will continue. To continue the above experiment for another 100 generations, the user can run:
 
 ```shell script
-mpirun -n 20 python run_evolution.py \
-    --experiment_path my_exp_config1/continue \
-    --config_file config_files/config1.txt \
-    --data_path cifar10/cifar_tfr_10000 \
-    --log_level INFO \
-    --continue_path my_exp_config1
+python run_evolution.py --experiment_path my_exp_config1/continue --config_file config_files/config1.txt --data_path cifar10/cifar_tfr_10000 --log_level INFO --continue_path my_exp_config1
 ```
 
 Run `python run_evolution.py --help` for additional parameter details.
@@ -193,15 +178,7 @@ After the evolution is complete, the final network can be retrained on the entir
   the evolution:
 
 ```shell script
-python run_retrain.py \
-    --experiment_path my_exp_config1 \
-    --data_path cifar10/cifar_tfr \
-    --log_level INFO \
-    --max_epochs 300 \
-    --batch_size 256 \
-    --eval_batch_size 1000 \
-    --threads 8 \
-    --run_train_eval
+python run_retrain.py --experiment_path my_exp_config1 --data_path cifar10/cifar_tfr --log_level INFO --max_epochs 300 --batch_size 256 --eval_batch_size 1000 --threads 8 --run_train_eval
 ```
 
 After the training is complete, the directory `my_exp_config1/retrain` will contain the following files:
@@ -228,16 +205,7 @@ It is also possible to retrain the network with training schemes defined in the 
   `my_exp_config2` using the `cosine` scheme, one can run:
 
 ```shell script
-python run_retrain.py \
-    --experiment_path my_exp_config2 \
-    --data_path cifar10/cifar_tfr \
-    --log_level INFO \
-    --batch_size 256 \
-    --eval_batch_size 1000 \
-    --retrain_folder train_cosine \
-    --threads 8 \
-    --lr_schedule cosine \
-    --run_train_eval
+python run_retrain.py --experiment_path my_exp_config2 --data_path cifar10/cifar_tfr --log_level INFO --batch_size 256 --eval_batch_size 1000 --retrain_folder train_cosine --threads 8 --lr_schedule cosine --run_train_eval
 ```
 
 The script `run_retrain.py` also supports retraining any individual saved in `data_QNAS.pkl`: use the
@@ -252,10 +220,7 @@ If one wants to get the number of weights and the MFLOPs in a specific individua
   saved in `my_exp_config3`, run:
 
 ```shell script
-python run_profiling.py \
-    --exp_path my_exp_config3 \
-    --generation 50 \
-    --individual 1
+python run_profiling.py --exp_path my_exp_config3 --generation 50 --individual 1
 ```
 
 ---
