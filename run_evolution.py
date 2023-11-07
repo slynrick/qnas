@@ -11,6 +11,9 @@ import qnas
 import qnas_config as cfg
 from util import check_files, init_log
 
+from multiprocessing import set_start_method
+set_start_method('spawn', True)
+
 
 def run(**args):
     logger = init_log(args['log_level'], name=__name__)
