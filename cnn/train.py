@@ -196,7 +196,7 @@ def train_and_eval(params, run_config, train_input_fn, eval_input_fn, selected_g
     return best_acc[0]
 
 
-def fitness_calculation(id_num, session, data_info, params, fn_dict, net_list, selected_gpu, selected_gpu_id, return_val):
+def fitness_calculation(id_num, data_info, params, fn_dict, net_list, selected_gpu, selected_gpu_id, return_val):
     """ Train and evaluate a model using evolved parameters.
 
     Args:
@@ -223,13 +223,24 @@ def fitness_calculation(id_num, session, data_info, params, fn_dict, net_list, s
 
     model_path = os.path.join(params['experiment_path'], id_num)
 
+    physical_devices = tf.config.list_physical_devices('GPU')
+    try:
+        tf.config.set_logical_device_configuration(
+            physical_devices[selected_gpu_id],
+            [tf.config.LogicalDeviceConfiguration(memory_limit=6000)])
+        logical_devices = tf.config.list_logical_devices('GPU')
+    except:
+        print('Failed to limit GPU RAM size')
+        # Invalid device or cannot modify logical devices once initialized.
+        pass
+
     # Session configuration.
-    #sess_config = tf.compat.v1.ConfigProto(allow_soft_placement=True,
-    #                                        intra_op_parallelism_threads=params['threads'],
-    #                                        inter_op_parallelism_threads=params['threads'],
-    #                                        gpu_options=tf.compat.v1.GPUOptions(allow_growth=True))
+    sess_config = tf.compat.v1.ConfigProto(allow_soft_placement=True,
+                                            intra_op_parallelism_threads=params['threads'],
+                                            inter_op_parallelism_threads=params['threads'],
+                                            gpu_options=tf.compat.v1.GPUOptions(allow_growth=True))
     
-    config = tf.estimator.RunConfig(session_config=session,
+    config = tf.estimator.RunConfig(session_config=sess_config,
                                     model_dir=model_path,
                                     save_checkpoints_steps=params['save_checkpoints_steps'],
                                     save_summary_steps=params['save_summary_steps'],
