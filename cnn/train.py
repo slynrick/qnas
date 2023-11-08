@@ -172,33 +172,31 @@ def train_and_eval(params, run_config, train_input_fn, eval_input_fn, selected_g
     # Calculate max_steps based on epochs_to_eval.
     train_steps = params.max_steps - params.epochs_to_eval * int(params.steps_per_epoch)
     
-    with tf.device(selected_gpu):
+    # Create estimator.
+    classifier = tf.estimator.Estimator(model_fn=_model_fn,
+                                        config=run_config,
+                                        params=params)
 
-        # Create estimator.
-        classifier = tf.estimator.Estimator(model_fn=_model_fn,
-                                            config=run_config,
-                                            params=params)
+    # Train estimator for the first train_steps.
+    classifier.train(input_fn=train_input_fn, max_steps=train_steps)
 
-        # Train estimator for the first train_steps.
-        classifier.train(input_fn=train_input_fn, max_steps=train_steps)
+    eval_hook = GetBestHook(name='accuracy/value:0', best_metric=best_acc)
 
-        eval_hook = GetBestHook(name='accuracy/value:0', best_metric=best_acc)
+    # Run the last steps_to_eval to complete training and also record validation accuracy.
+    # Evaluate 1 time per epoch.
+    for _ in range(params.epochs_to_eval):
+        train_steps += int(params.steps_per_epoch)
+        classifier.train(input_fn=train_input_fn,
+                        max_steps=train_steps)
 
-        # Run the last steps_to_eval to complete training and also record validation accuracy.
-        # Evaluate 1 time per epoch.
-        for _ in range(params.epochs_to_eval):
-            train_steps += int(params.steps_per_epoch)
-            classifier.train(input_fn=train_input_fn,
-                            max_steps=train_steps)
-
-            classifier.evaluate(input_fn=eval_input_fn,
-                                steps=None,
-                                hooks=[eval_hook])
-        del classifier
+        classifier.evaluate(input_fn=eval_input_fn,
+                            steps=None,
+                            hooks=[eval_hook])
+    del classifier
     return best_acc[0]
 
 
-def fitness_calculation(id_num, data_info, params, fn_dict, net_list, selected_gpu, return_val):
+def fitness_calculation(id_num, data_info, params, fn_dict, net_list, selected_gpu, selected_gpu_id, return_val):
     """ Train and evaluate a model using evolved parameters.
 
     Args:
@@ -229,7 +227,7 @@ def fitness_calculation(id_num, data_info, params, fn_dict, net_list, selected_g
     sess_config = tf.compat.v1.ConfigProto(allow_soft_placement=True,
                                             intra_op_parallelism_threads=params['threads'],
                                             inter_op_parallelism_threads=params['threads'],
-                                            gpu_options=tf.compat.v1.GPUOptions(allow_growth=True))
+                                            gpu_options=tf.compat.v1.GPUOptions(allow_growth=True, visible_device_list=f'{selected_gpu_id}'))
     
     config = tf.estimator.RunConfig(session_config=sess_config,
                                     model_dir=model_path,

@@ -9,7 +9,6 @@ import time
 from typing import Any, Dict
 
 import numpy as np
-import tensorflow as tf
 
 from cnn import train
 from util import init_log
@@ -45,6 +44,9 @@ class EvalPopulation(object):
         Returns:
             numpy array containing evaluations results of each model in *net_lists*.
         """
+        def get_gpus():
+            import tensorflow as tf
+            return tf.config.list_logical_devices('GPU')
 
         pop_size = len(decoded_nets)
 
@@ -53,7 +55,7 @@ class EvalPopulation(object):
         print(self.fn_dict)
 
         variables = [Value('f', 0.0) for _ in range(pop_size)]
-        gpus = tf.config.list_logical_devices('GPU')
+        gpus = get_gpus()
         if gpus:
             selected_gpu = 0
             individual_per_gpu = []
@@ -98,6 +100,7 @@ class EvalPopulation(object):
                                         fn_dict,
                                         decoded_net, 
                                         selected_gpu, 
+                                        selected_gpu_id,
                                         return_val)
             print(f"finishing individual {individual} - {return_val.value}")
             self.logger.info(f"Clculated fitness of individual {individual} on gpu {selected_gpu} with {return_val.value}")
