@@ -4,13 +4,13 @@ QNAS:
     crossover_rate: 0.5
     max_generations: 100
     max_num_nodes: 1
-    num_quantum_ind: 1
+    num_quantum_ind: 6
     penalize_number: 0
-    repetition: 1
+    repetition: 3
     replace_method: best
     update_quantum_gen: 5
     update_quantum_rate: 0.1
-    save_data_freq: 10
+    save_data_freq: 1
 
     params_ranges:
         decay: [0.1, 0.999]
@@ -43,4 +43,4 @@ train:
     # Tensorflow
     save_checkpoints_epochs: 10
     save_summary_epochs: 0.25
-    threads: 0
+    threads: 8

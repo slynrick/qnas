@@ -53,24 +53,30 @@ class EvalPopulation(object):
         print(self.fn_dict)
 
         variables = [Value('f', 0.0) for _ in range(pop_size)]
-        gpus = tf.config.list_physical_devices('GPU')
+        gpus = tf.config.list_logical_devices('GPU')
         if gpus:
             selected_gpu = 0
-            processes = []
+            individual_per_gpu = []
             for idx in range(len(variables)):
-                process = Process(target=train.fitness_calculation, args=(f'{generation}_0',
-                                                    self.data_info,
-                                                    {**self.train_params,**decoded_params[0]},
-                                                    self.fn_dict,
-                                                    decoded_nets[0], 
-                                                    str(selected_gpu), 
-                                                    variables[idx],))
-                process.start()
-                self.logger.info(f"Starting fitness of individual {idx} on gpu {selected_gpu}")
-                processes.append(process)
+                self.logger.info(f"Going to start fitness of individual {idx} on gpu {selected_gpu} ({gpus[selected_gpu].name})")
+                individual_per_gpu.append((idx, selected_gpu, decoded_nets[idx], decoded_params[idx], variables[idx]))
                 selected_gpu += 1
                 if selected_gpu >= len(gpus):
                     selected_gpu = selected_gpu = selected_gpu % len(gpus)
+            
+            
+            processes = []
+            for idx, gpu in enumerate(gpus):
+                individuals_selected_gpu = list(filter(lambda x: x[1]==idx, individual_per_gpu))
+                print(individuals_selected_gpu)
+                process = Process(target=self.run_individuals, args=(generation,
+                                                    self.data_info,
+                                                    self.train_params,
+                                                    self.fn_dict,
+                                                    gpu.name, 
+                                                    individuals_selected_gpu))
+                process.start()
+                processes.append(process)
 
             for p in processes:
                 p.join()
@@ -80,3 +86,19 @@ class EvalPopulation(object):
         
 
         return evaluations
+
+
+
+    def run_individuals(self, generation, data_info, train_params, fn_dict, selected_gpu, individuals_selected_gpu):
+        for individual, selected_gpu_id, decoded_net, decoded_params, return_val in individuals_selected_gpu:
+            print(f"starting individual {individual}")
+            train.fitness_calculation(f"{generation}_{selected_gpu_id}_{individual}",
+                                        data_info,
+                                        {**train_params,**decoded_params},
+                                        fn_dict,
+                                        decoded_net, 
+                                        selected_gpu, 
+                                        return_val)
+            print(f"finishing individual {individual} - {return_val.value}")
+            self.logger.info(f"Clculated fitness of individual {individual} on gpu {selected_gpu} with {return_val.value}")
+

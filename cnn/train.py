@@ -152,7 +152,7 @@ def _get_loss_and_grads(is_train, params, features, labels):
     return loss, list(zip(gradients, model_params)), predictions
 
 
-def train_and_eval(params, run_config, train_input_fn, eval_input_fn):
+def train_and_eval(params, run_config, train_input_fn, eval_input_fn, selected_gpu):
     """ Train a model and evaluate it for the last *params.epochs_to_eval*. Return the maximum
         accuracy.
 
@@ -165,36 +165,36 @@ def train_and_eval(params, run_config, train_input_fn, eval_input_fn):
     Returns:
         maximum accuracy.
     """
-
+    
     # best_acc[0] --> best accuracy in the last epochs; best_acc[1] --> corresponding step
     best_acc = [0, 0]
 
     # Calculate max_steps based on epochs_to_eval.
     train_steps = params.max_steps - params.epochs_to_eval * int(params.steps_per_epoch)
-
-    # Create estimator.
-    classifier = tf.estimator.Estimator(model_fn=_model_fn,
-                                        config=run_config,
-                                        params=params)
-
-    # Train estimator for the first train_steps.
-    classifier.train(input_fn=train_input_fn, max_steps=train_steps)
-
-    eval_hook = GetBestHook(name='accuracy/value:0', best_metric=best_acc)
-
-    # Run the last steps_to_eval to complete training and also record validation accuracy.
-    # Evaluate 1 time per epoch.
-    for _ in range(params.epochs_to_eval):
-        train_steps += int(params.steps_per_epoch)
-        classifier.train(input_fn=train_input_fn,
-                         max_steps=train_steps)
-
-        classifier.evaluate(input_fn=eval_input_fn,
-                            steps=None,
-                            hooks=[eval_hook])
     
-    del classifier
+    with tf.device(selected_gpu):
 
+        # Create estimator.
+        classifier = tf.estimator.Estimator(model_fn=_model_fn,
+                                            config=run_config,
+                                            params=params)
+
+        # Train estimator for the first train_steps.
+        classifier.train(input_fn=train_input_fn, max_steps=train_steps)
+
+        eval_hook = GetBestHook(name='accuracy/value:0', best_metric=best_acc)
+
+        # Run the last steps_to_eval to complete training and also record validation accuracy.
+        # Evaluate 1 time per epoch.
+        for _ in range(params.epochs_to_eval):
+            train_steps += int(params.steps_per_epoch)
+            classifier.train(input_fn=train_input_fn,
+                            max_steps=train_steps)
+
+            classifier.evaluate(input_fn=eval_input_fn,
+                                steps=None,
+                                hooks=[eval_hook])
+        del classifier
     return best_acc[0]
 
 
@@ -227,10 +227,10 @@ def fitness_calculation(id_num, data_info, params, fn_dict, net_list, selected_g
 
     # Session configuration.
     sess_config = tf.compat.v1.ConfigProto(allow_soft_placement=True,
-                                 intra_op_parallelism_threads=params['threads'],
-                                 inter_op_parallelism_threads=params['threads'],
-                                 gpu_options=tf.compat.v1.GPUOptions(force_gpu_compatible=True,
-                                                           allow_growth=True, visible_device_list=selected_gpu))
+                                            intra_op_parallelism_threads=params['threads'],
+                                            inter_op_parallelism_threads=params['threads'],
+                                            gpu_options=tf.compat.v1.GPUOptions(allow_growth=True))
+    
     config = tf.estimator.RunConfig(session_config=sess_config,
                                     model_dir=model_path,
                                     save_checkpoints_steps=params['save_checkpoints_steps'],
@@ -276,7 +276,7 @@ def fitness_calculation(id_num, data_info, params, fn_dict, net_list, selected_g
     try:
         return_val.value = train_and_eval(params=hparams, run_config=config,
                                   train_input_fn=train_input_fn,
-                                  eval_input_fn=eval_input_fn)
+                                  eval_input_fn=eval_input_fn, selected_gpu=selected_gpu)
     except tf.compat.v1.train.NanLossDuringTrainingError:
         tf.compat.v1.logging.log(level=tf.compat.v1.logging.get_verbosity(),
                        msg=f'Model diverged with NaN loss...')

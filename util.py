@@ -9,6 +9,7 @@
 
 """
 
+import glob
 import logging
 import os
 import pickle as pkl
@@ -19,7 +20,6 @@ import requests
 import numpy as np
 import tensorflow as tf
 import yaml
-from six.moves import urllib
 
 
 class ExtractData(object):
@@ -27,11 +27,12 @@ class ExtractData(object):
         access this data.
     """
 
-    def __init__(self, input_dir, output_dir, run_tag_dict=None):
+    def __init__(self, input_dir, current_ind, output_dir, run_tag_dict=None):
         """ Initialize ExtractData.
 
         Args:
             input_dir: (str) path to the directory containing the Tensorflow training files.
+            best_id: (str): best individual
             output_dir: (str) path to the directory where to save the csv files.
             run_tag_dict: dict containing the runs from which data will be extracted. Example:
                 {'run_dir_name1': ['tag1', 'tag2'], 'run_dir_name2': ['tag2']}. Default is to
@@ -40,6 +41,7 @@ class ExtractData(object):
         """
 
         self.dir_path = input_dir
+        self.current_ind = current_ind
         self.event_files = {}
         if run_tag_dict:
             self.run_tag_dict = run_tag_dict
@@ -53,16 +55,22 @@ class ExtractData(object):
 
     def get_event_files(self):
         """ List event files in *self.input_dir*. """
+        #print('---------------------------------------------------------')
 
         for run, tags in self.run_tag_dict.items():
-            run_dir = os.path.join(self.dir_path, run)
-            files = [os.path.join(run_dir, f) for f in os.listdir(run_dir)
-                     if f.startswith('events')]
-            # If more than one file, get the most recent one.
-            if len(files) > 1:
-                files.sort(key=lambda x: os.path.getmtime(x))
-                files = files[-1:]
-            self.event_files[run] = {'file': files[0], 'tags': tags}
+            #run_dir = os.path.join(self.dir_path, run)
+            run_dirs = glob.glob(os.path.join(self.dir_path, self.current_ind.replace('_', '_*_'), run))
+            #print('path: ', self.dir_path, ' / ', self.best_id.replace('_', '_*_') , ' / ', run, ' / ', os.path.join(self.dir_path, run.replace('_', '_*_')))
+            #print('runs dir: ', run_dirs)
+            if len(run_dirs) == 1:
+                files = [os.path.join(run_dirs[0], f) for f in os.listdir(run_dirs[0])
+                        if f.startswith('events')]
+                # If more than one file, get the most recent one.
+                if len(files) > 1:
+                    files.sort(key=lambda x: os.path.getmtime(x))
+                    files = files[-1:]
+                #print('files dir: ', files)
+                self.event_files[run] = {'file': files[0], 'tags': tags}
 
     def export_to_csv(self, event_file, tag, write_headers=True):
         """ Extract tabular data from the scalars at a given run and tag. The result is a
@@ -73,9 +81,11 @@ class ExtractData(object):
             tag: (str) name of the tensor to be extracted from *event_file* (ex.: 'train_loss').
             write_headers: (bool) True if csv file should contain headers.
         """
-
-        out_file = f'{os.path.split(self.dir_path)[-1]}_{tag}.csv'
+        print("----------------------------------------------------")
+        out_file = f'{os.path.split(self.dir_path)[-1]}_{self.current_ind}_{tag}.csv'
+        print(out_file)
         out_path = os.path.join(self.output_dir, out_file)
+        print(out_path)
         iterator = tf.compat.v1.train.summary_iterator(event_file)
 
         with open(out_path, 'w') as f:
@@ -102,7 +112,6 @@ def natural_key(string):
     """ Key to use with sort() in order to sort string lists in natural order.
         Example: [1_1, 1_2, 1_5, 1_10, 1_13].
     """
-
     return [int(s) if s.isdigit() else s for s in re.split(r'(\d+)', string)]
 
 
@@ -116,12 +125,12 @@ def delete_old_dirs(path, keep_best=False, best_id=''):
         best_id: (str) id of the best individual.
     """
 
-    folders = [os.path.join(path, d) for d in os.listdir(path)
-               if os.path.isdir(os.path.join(path, d)) and d[0].isdigit()]
+    folders = [os.path.join(path, d) for d in os.listdir(path) if os.path.isdir(os.path.join(path, d)) and d[0].isdigit()]
     folders.sort(key=natural_key)
 
     if keep_best and best_id:
-        folders = [d for d in folders if os.path.basename(d) != best_id]
+        generation, individual = best_id.split("_")
+        folders = [d for d in folders if not (os.path.basename(d).startswith(generation) and os.path.basename(d).endswith(individual))]
 
     for f in folders:
         rmtree(f)
@@ -299,7 +308,6 @@ def download_file(data_path, file_name, source_url):
         with open(file_path, 'wb') as f:
             f.write(resp.content)
         
-        #file_path, _ = urllib.request.urlretrieve(source_url, file_path, _progress)
         stat_info = os.stat(file_path)
         print(f'\nSuccessfully downloaded {file_name} {stat_info.st_size} bytes! :)')
     else:

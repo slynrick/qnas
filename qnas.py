@@ -399,10 +399,8 @@ class QNAS(object):
         """
 
         if np.remainder(self.current_gen, self.save_data_freq) == 0 and self.current_gen > 0:
-            input_dir = os.path.join(self.experiment_path,
-                                     f'{self.current_best_id[0]}_{self.current_best_id[1]}')
             output_dir = os.path.join(self.experiment_path, 'csv_data')
-            extractor = ExtractData(input_dir=input_dir, output_dir=output_dir)
+            extractor = ExtractData(input_dir=self.experiment_path, current_ind=f'{self.current_best_id[0]}_{self.current_best_id[1]}', output_dir=output_dir)
             extractor.extract()
 
     def go_next_gen(self):
