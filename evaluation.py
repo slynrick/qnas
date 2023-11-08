@@ -60,23 +60,23 @@ class EvalPopulation(object):
             individual_per_thread.append((idx, selected_thread, decoded_nets[idx], decoded_params[idx], variables[idx]))
             selected_thread += 1
             if selected_thread >= self.train_params['threads']:
-                selected_thread = selected_thread = selected_thread % self.train_params['threads']
+                selected_thread = selected_thread % self.train_params['threads']
             
             
-            processes = []
-            for idx in range(self.train_params['threads']):
-                individuals_selected_thread = list(filter(lambda x: x[1]==idx, individual_per_thread))
-                print(individuals_selected_thread)
-                process = Process(target=self.run_individuals, args=(generation,
-                                                    self.data_info,
-                                                    self.train_params,
-                                                    self.fn_dict,
-                                                    individuals_selected_thread))
-                process.start()
-                processes.append(process)
+        processes = []
+        for idx in range(self.train_params['threads']):
+            individuals_selected_thread = list(filter(lambda x: x[1]==idx, individual_per_thread))
+            print(individuals_selected_thread)
+            process = Process(target=self.run_individuals, args=(generation,
+                                                self.data_info,
+                                                self.train_params,
+                                                self.fn_dict,
+                                                individuals_selected_thread))
+            process.start()
+            processes.append(process)
 
-            for p in processes:
-                p.join()
+        for p in processes:
+            p.join()
                     
         for idx, val in enumerate(variables):
             evaluations[idx] = val.value
