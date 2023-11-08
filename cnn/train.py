@@ -152,7 +152,7 @@ def _get_loss_and_grads(is_train, params, features, labels):
     return loss, list(zip(gradients, model_params)), predictions
 
 
-def train_and_eval(params, run_config, train_input_fn, eval_input_fn, selected_gpu):
+def train_and_eval(params, run_config, train_input_fn, eval_input_fn):
     """ Train a model and evaluate it for the last *params.epochs_to_eval*. Return the maximum
         accuracy.
 
@@ -196,7 +196,7 @@ def train_and_eval(params, run_config, train_input_fn, eval_input_fn, selected_g
     return best_acc[0]
 
 
-def fitness_calculation(id_num, data_info, params, fn_dict, net_list, selected_gpu, selected_gpu_id, return_val):
+def fitness_calculation(id_num, data_info, params, fn_dict, net_list, return_val):
     """ Train and evaluate a model using evolved parameters.
 
     Args:
@@ -220,14 +220,14 @@ def fitness_calculation(id_num, data_info, params, fn_dict, net_list, selected_g
     # elif params['log_level'] == 'DEBUG':
     #     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
 
-
     model_path = os.path.join(params['experiment_path'], id_num)
 
+    os.environ['CUDA_VISIBLE_DEVICES'] = f"{params['gpu_selected']}"
     physical_devices = tf.config.list_physical_devices('GPU')
     try:
         tf.config.set_logical_device_configuration(
-            physical_devices[selected_gpu_id],
-            [tf.config.LogicalDeviceConfiguration(memory_limit=6000)])
+            physical_devices[0],
+            [tf.config.LogicalDeviceConfiguration(memory_limit=params['memory_per_thread'])])
         logical_devices = tf.config.list_logical_devices('GPU')
     except:
         print('Failed to limit GPU RAM size')
@@ -285,7 +285,7 @@ def fitness_calculation(id_num, data_info, params, fn_dict, net_list, selected_g
     try:
         return_val.value = train_and_eval(params=hparams, run_config=config,
                                   train_input_fn=train_input_fn,
-                                  eval_input_fn=eval_input_fn, selected_gpu=selected_gpu)
+                                  eval_input_fn=eval_input_fn)
     except tf.compat.v1.train.NanLossDuringTrainingError:
         tf.compat.v1.logging.log(level=tf.compat.v1.logging.get_verbosity(),
                        msg=f'Model diverged with NaN loss...')

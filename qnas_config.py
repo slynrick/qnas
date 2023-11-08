@@ -109,7 +109,9 @@ class ConfigParameters(object):
                                ('subtract_mean', bool),
                                ('save_checkpoints_epochs', int),
                                ('save_summary_epochs', float),
-                               ('threads', int)]}
+                               ('threads', int),
+                               ('memory_per_thread', int),
+                               ('gpu_selected', int)]}
 
         for config in vars_dict.keys():
             for item in vars_dict[config]:
