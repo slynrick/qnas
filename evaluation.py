@@ -44,9 +44,14 @@ class EvalPopulation(object):
         Returns:
             numpy array containing evaluations results of each model in *net_lists*.
         """
-        def get_gpus():
+        def get_gpus(params):
             import tensorflow as tf
-            return tf.config.list_logical_devices('GPU')
+            # Session configuration.
+            sess_config = tf.compat.v1.ConfigProto(allow_soft_placement=True,
+                                            intra_op_parallelism_threads=params['threads'],
+                                            inter_op_parallelism_threads=params['threads'],
+                                            gpu_options=tf.compat.v1.GPUOptions(allow_growth=True))
+            return tf.config.list_logical_devices('GPU'), sess_config
 
         pop_size = len(decoded_nets)
 
@@ -55,7 +60,7 @@ class EvalPopulation(object):
         print(self.fn_dict)
 
         variables = [Value('f', 0.0) for _ in range(pop_size)]
-        gpus = get_gpus()
+        gpus, session = get_gpus(self.train_params)
         if gpus:
             selected_gpu = 0
             individual_per_gpu = []
@@ -71,7 +76,7 @@ class EvalPopulation(object):
             for idx, gpu in enumerate(gpus):
                 individuals_selected_gpu = list(filter(lambda x: x[1]==idx, individual_per_gpu))
                 print(individuals_selected_gpu)
-                process = Process(target=self.run_individuals, args=(generation,
+                process = Process(target=self.run_individuals, args=(generation, session,
                                                     self.data_info,
                                                     self.train_params,
                                                     self.fn_dict,
@@ -91,10 +96,10 @@ class EvalPopulation(object):
 
 
 
-    def run_individuals(self, generation, data_info, train_params, fn_dict, selected_gpu, individuals_selected_gpu):
+    def run_individuals(self, generation, session, data_info, train_params, fn_dict, selected_gpu, individuals_selected_gpu):
         for individual, selected_gpu_id, decoded_net, decoded_params, return_val in individuals_selected_gpu:
             print(f"starting individual {individual}")
-            train.fitness_calculation(f"{generation}_{selected_gpu_id}_{individual}",
+            train.fitness_calculation(f"{generation}_{selected_gpu_id}_{individual}", session,
                                         data_info,
                                         {**train_params,**decoded_params},
                                         fn_dict,
