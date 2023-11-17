@@ -3,10 +3,10 @@
 QNAS:
     crossover_rate: 0.5
     max_generations: 100
-    max_num_nodes: 1
+    max_num_nodes: 6
     num_quantum_ind: 6
     penalize_number: 0
-    repetition: 3
+    repetition: 2
     replace_method: best
     update_quantum_gen: 5
     update_quantum_rate: 0.1
