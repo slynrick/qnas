@@ -18,22 +18,20 @@ tf.compat.v1.disable_v2_behavior()
 
 
 class DataSet(object):
-    def __init__(self, data_info, data_aug, subtract_mean, process_for_training):
+    def __init__(self, data_info, params, process_for_training):
         """ Initialize DataSet base class.
 
         Args:
             data_info: one of Cifar10Info or Cifar100Info objects.
-            data_aug: (bool) True if user wants to train using data augmentation.
-            subtract_mean: (bool) True if calculated mean on the training set should be
-                subtracted.
+            params: (dict) hyperparams
             process_for_training: (bool) if True, the dataset is processed for training (include
                 shuffle and dataset augmentation); for validation and test, set it to False.
         """
 
-        self.data_augmentation = data_aug
+        self.data_augmentation = params.data_augmentation
         self.info = data_info
         self.process_for_training = process_for_training
-        self.subtract_mean = subtract_mean
+        self.subtract_mean = params.subtract_mean
 
     def get_file_list(self, dataset_type):
         """ Get the file list corresponding to the *mode*.
@@ -148,8 +146,46 @@ class DataSet(object):
         return image
 
 
+class UserDefinedInfo(object):
+    def __init__(self, data_path, train_params, validation=True):
+        """ Cifar10 dataset information.
+
+            Info in http://www.cs.toronto.edu/~kriz/cifar.html.
+
+        Args:
+            data_path: (str) path to the folder containing the tfrecords files.
+            validation: (bool) whether to use the validation dataset for validation.
+            train_params: (dict) train params
+        """
+        self.data_path = data_path
+        self.height = train_params['image_height']
+        self.width = train_params['image_width']
+        self.num_channels = train_params['image_channels']
+        self.mean_image = np.load(os.path.join(self.data_path,
+                                               train_params['image_mean_filename']))['train_img_mean']
+        self.num_classes = train_params['dataset_classes']
+        self.pad = train_params['image_padding']
+
+        self.train_files = [os.path.join(self.data_path, f) for f in os.listdir(self.data_path)
+                            if f.startswith('train')]
+        self.valid_files = [os.path.join(self.data_path, f) for f in os.listdir(self.data_path)
+                            if f.startswith('valid')]
+        self.test_files = [os.path.join(self.data_path, f) for f in os.listdir(self.data_path)
+                           if f.startswith('test')]
+
+        # if user wants to train using all images
+        if not validation:
+            self.train_files = self.train_files + self.valid_files
+            self.valid_files = []
+
+        self.num_train_ex = count_records(self.train_files)
+        self.num_valid_ex = count_records(self.valid_files)
+        self.num_test_ex = count_records(self.test_files)
+
+
+
 class Cifar10Info(object):
-    def __init__(self, data_path, validation=True):
+    def __init__(self, data_path, train_params, validation=True):
         """ Cifar10 dataset information.
 
             Info in http://www.cs.toronto.edu/~kriz/cifar.html.
@@ -186,7 +222,7 @@ class Cifar10Info(object):
 
 
 class Cifar100Info(Cifar10Info):
-    def __init__(self, data_path, validation=True):
+    def __init__(self, data_path, train_params, validation=True):
         """ Cifar100 dataset information.
 
             Info in http://www.cs.toronto.edu/~kriz/cifar.html.
@@ -217,29 +253,20 @@ def count_records(file_list):
     return c
 
 
-def input_fn(data_info, dataset_type, batch_size, data_aug, subtract_mean, process_for_training,
-             threads=0):
+def input_fn(data_info, dataset_type, process_for_training, params):
     """ Create input function for model.
 
     Args:
         data_info: one of Cifar10Info, Cifar100Info or objects.
         dataset_type: (str) one of 'train', 'valid' or 'test'.
-        batch_size: (int) number of examples in a batch (can be different for train or evaluate)
-        data_aug: (bool) True if user wants to train using data augmentation.
-        subtract_mean: (bool) True if calculated mean on the training set should be
-            subtracted.
-        process_for_training: (bool) if True, the dataset is processed for training (shuffle and
-            repeat, for example); for validation and test, set it to False.
-        threads: (int) number of threads to read and batch dataset; if 0, it set to the number
-            of logical cores.
+        params: (dict) hyperparams
 
     Returns:
         batch of images (shape = (batch_size, height, width, num_channels)).
         batch of labels (shape = (batch_size,)).
     """
-
     with tf.device('/cpu:0'):
-        dataset = DataSet(data_info, data_aug, subtract_mean, process_for_training)
-        image_batch, label_batch = dataset.make_batch(batch_size, dataset_type, threads)
+        dataset = DataSet(data_info, params, process_for_training)
+        image_batch, label_batch = dataset.make_batch(params.batch_size, dataset_type, params.threads)
 
         return image_batch, label_batch

@@ -136,7 +136,7 @@ In summary, the files are:
 This is an example of how to run architecture search for dataset `cifar10/cifar_tfr_10000` with `config1.txt`:
 
 ```shell script
-python run_evolution.py --experiment_path my_exp_config1 --config_file config_files/config1.txt --data_path cifar10/cifar_tfr_10000 --log_level INFO
+python run_evolution.py --experiment_path my_exp_config1 --config_file config_files/config1.txt --log_level INFO
 ```
 
 The number of workers in the MPI execution must be equal to the number of classical individuals. In `config1.txt`,   
@@ -164,7 +164,7 @@ It is also possible to continue a finished evolution process. Note that all the 
   will continue. To continue the above experiment for another 100 generations, the user can run:
 
 ```shell script
-python run_evolution.py --experiment_path my_exp_config1/continue --config_file config_files/config1.txt --data_path cifar10/cifar_tfr_10000 --log_level INFO --continue_path my_exp_config1
+python run_evolution.py --experiment_path my_exp_config1/continue --config_file config_files/config1.txt --log_level INFO --continue_path my_exp_config1
 ```
 
 Run `python run_evolution.py --help` for additional parameter details.
@@ -178,7 +178,7 @@ After the evolution is complete, the final network can be retrained on the entir
   the evolution:
 
 ```shell script
-python run_retrain.py --experiment_path my_exp_config1 --data_path cifar10/cifar_tfr --log_level INFO --max_epochs 300 --batch_size 256 --eval_batch_size 1000 --threads 8 --run_train_eval
+python run_retrain.py --experiment_path my_exp_config1 --log_level INFO --max_epochs 300 --batch_size 256 --eval_batch_size 1000 --threads 8 --run_train_eval
 ```
 
 After the training is complete, the directory `my_exp_config1/retrain` will contain the following files:

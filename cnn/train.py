@@ -263,19 +263,13 @@ def fitness_calculation(id_num, data_info, params, fn_dict, net_list, return_val
 
     train_input_fn = functools.partial(input.input_fn, data_info=data_info,
                                        dataset_type='train',
-                                       batch_size=hparams.batch_size,
-                                       data_aug=hparams.data_augmentation,
-                                       subtract_mean=hparams.subtract_mean,
-                                       process_for_training=True,
-                                       threads=hparams.threads)
+                                       params=hparams,
+                                       process_for_training=True)
 
     eval_input_fn = functools.partial(input.input_fn, data_info=data_info,
                                       dataset_type='valid',
-                                      batch_size=hparams.eval_batch_size,
-                                      data_aug=False,
-                                      subtract_mean=hparams.subtract_mean,
-                                      process_for_training=False,
-                                      threads=hparams.threads)
+                                      params=hparams,
+                                      process_for_training=False)
     node = platform.uname()[1]
 
     tf.compat.v1.logging.log(level=tf.compat.v1.logging.get_verbosity(),

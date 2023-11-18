@@ -105,6 +105,13 @@ class ConfigParameters(object):
                                ('epochs_to_eval', int),
                                ('optimizer', str),
                                ('dataset', str),
+                               ('dataset_path', str),
+                               ('dataset_classes', int),
+                               ('image_height', int),
+                               ('image_width', int),
+                               ('image_channels', int),
+                               ('image_mean_filename', str),
+                               ('image_padding', int),
                                ('data_augmentation', bool),
                                ('subtract_mean', bool),
                                ('save_checkpoints_epochs', int),
@@ -251,7 +258,6 @@ class ConfigParameters(object):
     def _get_common_params(self):
         """ Get parameters that are combined/calculated the same way for all phases. """
 
-        self.train_spec['data_path'] = self.args['data_path']
         self.data_info = self.get_data_info()
 
         if not self.train_spec['eval_batch_size']:
@@ -286,7 +292,7 @@ class ConfigParameters(object):
 
         name = self.train_spec['dataset'] + 'Info'
 
-        return getattr(input, name)(self.train_spec['data_path'], validation=True)
+        return getattr(input, name)(self.train_spec['dataset_path'],  train_params=self.train_spec, validation=True)
 
     def load_old_params(self):
         """ Load parameters from *self.files_spec['previous_QNAS_params']* and replace

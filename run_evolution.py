@@ -64,7 +64,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--experiment_path', type=str, required=True,
                         help='Directory where to write logs and model files.')
-    parser.add_argument('--data_path', type=str, required=True, help='Path to input data.')
     parser.add_argument('--config_file', type=str, required=True,
                         help='Configuration file name.')
     parser.add_argument('--continue_path', type=str, default='',
