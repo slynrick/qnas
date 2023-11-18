@@ -43,6 +43,6 @@ train:
     # Tensorflow
     save_checkpoints_epochs: 10
     save_summary_epochs: 0.25
-    threads: 8
-    memory_per_thread: 6000
+    threads: 2
+    memory_per_thread: 2000
     gpu_selected: 0
