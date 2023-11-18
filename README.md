@@ -115,7 +115,16 @@ train:
     optimizer:           (str) RMSProp or Momentum
 
     # Dataset
-    dataset:             (str) Cifar10 or CIFAR100
+    dataset:             (str) Cifar10, CIFAR100 or UserDefined
+    dataset_path:        (str) Dataset path
+    dataset_classes:     (int) Number of classes of dataset
+    image_height:        (int) Height of image inside dataset
+    image_width:         (int) Width of image inside dataset
+    image_channels:      (int) Channels of image inside dataset
+    image_mean_filename: (str) Image mean dataset
+    image_padding:       (int) Padding size
+
+
     data_augmentation:   (bool) True if data augmentation methods should be applied
     subtract_mean:       (bool) True if the dataset mean image should be subtracted from images
 
@@ -123,23 +132,25 @@ train:
     save_checkpoints_epochs: (int) number of epochs to save a new checkpoint.
     save_summary_epochs:     (float) number of epochs (or fraction of an epoch) to save new summary
     threads:                 (int) number of threads for Tensorflow ops (0 -> number of logical cores)
+    memory_per_thread:       (int) memory size allocated for one GPU for each thread
+    gpu_selected:            (int) Gpu selected, could be a string list
 ```
 
 We provide 3 configuration file examples in the folder `config_files`; one can use them as-is, or modify as
  needed.   
 In summary, the files are:
-- `config1.txt` evolves both the architecture and some hyperparameters of the network
-- `config2.txt` evolves only the architecture and adopts penalization
-- `config3.txt` evolves only the architecture with residual blocks and adopts penalization
+- `config1.yaml` evolves both the architecture and some hyperparameters of the network
+- `config2.yaml` evolves only the architecture and adopts penalization
+- `config3.yaml` evolves only the architecture with residual blocks and adopts penalization
 
 
-This is an example of how to run architecture search for dataset `cifar10/cifar_tfr_10000` with `config1.txt`:
+This is an example of how to run architecture search for dataset `cifar10/cifar_tfr_10000` with `config1.yaml`:
 
 ```shell script
-python run_evolution.py --experiment_path my_exp_config1 --config_file config_files/config1.txt --log_level INFO
+python run_evolution.py --experiment_path my_exp_config1 --config_file config_files/config1.yaml --log_level INFO
 ```
 
-The number of workers in the MPI execution must be equal to the number of classical individuals. In `config1.txt`,   
+The number of workers in the MPI execution must be equal to the number of classical individuals. In `config1.yaml`,   
 this number is 20 (_num_quantum_ind_ (=5) x _repetition_ (=4) = 20). The output folder `my_exp_config1`   
 looks like this:
 
@@ -164,7 +175,7 @@ It is also possible to continue a finished evolution process. Note that all the 
   will continue. To continue the above experiment for another 100 generations, the user can run:
 
 ```shell script
-python run_evolution.py --experiment_path my_exp_config1/continue --config_file config_files/config1.txt --log_level INFO --continue_path my_exp_config1
+python run_evolution.py --experiment_path my_exp_config1/continue --config_file config_files/config1.yaml --log_level INFO --continue_path my_exp_config1
 ```
 
 Run `python run_evolution.py --help` for additional parameter details.

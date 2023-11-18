@@ -1,0 +1,15 @@
+dataset_name: UserDefined
+dataset_input_path: input_path
+dataset_output_path: output_path
+
+limit_data: 1000
+random_seed: 42
+
+train_test_ratio: 0.8
+valid_ratio: 0.1
+
+labels:
+  class1: 0
+  class2: 1
+  class3: 2
+

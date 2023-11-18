@@ -1,69 +1,87 @@
 import argparse
 import os
+from time import time
 
 import numpy as np
-import tensorflow as tf
-from PIL import Image
+import yaml
+from sklearn.model_selection import train_test_split
+
+import util
 
 
-def _get_image_filenames_and_labels(directory):
+def _get_image_filenames_and_labels(directory, map_label, train_test_ratio, random_seed):
     filenames = []
     labels = []
 
     for subdir, _, files in os.walk(directory):
         for filename in files:
             if filename.endswith('.jpg'):
-                label = int(subdir.split('/')[-1])
+                label = map_label[subdir.split('/')[-1]]
 
                 filename = os.path.join(subdir, filename)
                 filenames.append(filename)
                 labels.append(label)
 
-    return filenames, labels
+    return train_test_split(filenames, labels, test_size=1.0-train_test_ratio, random_state=random_seed, stratify=labels, shuffle=True)
 
-def _int64_feature(value):
-    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+def create_tfrecord(config_filename):
+    config = yaml.safe_load(config_filename)
+    info_dict = {'dataset': f'custom_dataset'}
 
-def _process_image(filename, label):
-    # Read the image file.
-    image = tf.image.decode_jpeg(tf.io.read_file(filename), channels=3)
+    if config['limit_data']:
+        size = config['limit_data']
+    else:
+        size = len(train_labels)
 
-    # Resize the image to the desired input size.
-    image = tf.image.resize(image, [224, 224])
+    random_seed = config['random_seed']
+    if random_seed is None:
+        random_seed = int(time())
 
-    # Normalize the pixel values to be between 0 and 1.
-    image = tf.cast(image, tf.float32) / 255.0
+    np.random.seed(random_seed)  # Choose random seed
+    info_dict['seed'] = random_seed
 
-    # Create a one-hot encoded label.
-    label = tf.one_hot(label, 10)
 
-    return image, label
+    train_imgs, train_labels, test_imgs, test_labels = _get_image_filenames_and_labels(config['dataset_input_path'], config['labels'], 
+                                                                                            config['train_test_ratio'], random_seed)
 
-def create_tfrecord(directory, output_filename):
-    writer = tf.io.TFRecordWriter(output_filename)
 
-    for filename, label in _get_image_filenames_and_labels(directory):
-        image, label = _process_image(filename, label)
+    train_imgs, train_labels, valid_imgs, valid_labels = util.split_dataset(
+        images=train_imgs, labels=train_labels, num_classes=len(config['labels']),
+        valid_ratio=config['valid_ratio'], limit=size)
 
-        image = (np.maximum(image, 0) / image.max()) * 255.0
-        image = Image.fromarray(np.uint8(image)).convert('RGB')
-        img_raw = image.tobytes()
-        example = tf.train.Example(features=tf.train.Features(feature={
-        'height': _int64_feature(224),
-        'width': _int64_feature(224),
-        'depth': _int64_feature(3),
-        "img_raw": tf.train.Feature(bytes_list=tf.train.BytesList(value=[img_raw])),
-        "label": tf.train.Feature(int64_list=tf.train.Int64List(value=[label]))}))
+    # Calculate mean of training dataset (does not include validation!)
+    train_img_mean = util.calculate_mean(train_imgs)
 
-        writer.write(example.SerializeToString())
+    output_path = os.path.join(config['dataset_input_path'], config['dataset_output_path'])
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+    else:
+        raise OSError('Directory already exists!')
 
-    writer.close()
+    # Save it as a numpy array
+    np.savez_compressed(os.path.join(output_path, f"{info_dict['dataset']}_train_mean"),
+                        train_img_mean=train_img_mean)
+
+
+    output_file = os.path.join(output_path, 'train_1.tfrecords')
+    util.convert_to_tfrecords(train_imgs, train_labels, output_file)
+    output_file = os.path.join(output_path, 'valid_1.tfrecords')
+    util.convert_to_tfrecords(valid_imgs, valid_labels, output_file)
+    output_file = os.path.join(output_path, 'test_1.tfrecords')
+    util.convert_to_tfrecords(test_imgs, test_labels, output_file)
+
+    info_dict['train_records'] = len(train_labels)
+    info_dict['valid_records'] = len(valid_labels)
+    info_dict['test_records'] = len(test_labels)
+    info_dict['shape'] = list(train_imgs.shape[1:])
+
+    util.create_info_file(out_path=output_path, info_dict=info_dict)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--directory', type=str, required=True, help='The directory containing the images.')
-    parser.add_argument('--output', type=str, required=True, help='The output TFRecord file.')
+    parser.add_argument('--config', type=str, required=True, help='config file')
 
     args = parser.parse_args()
 
-    create_tfrecord(args.directory, args.output)
+    create_tfrecord(args.config)
