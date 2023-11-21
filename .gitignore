@@ -110,6 +110,6 @@ ENV/
 .vscode
 
 
-cifar*/
+dataset/
 my_exp*/
 tf_record*/

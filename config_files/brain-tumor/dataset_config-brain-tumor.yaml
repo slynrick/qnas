@@ -1,0 +1,16 @@
+dataset_name: mri_brain_tumor
+dataset_input_path: dataset/mri_brain_tumor/data
+dataset_output_path: ../data-tfr
+
+limit_data: 2000
+random_seed: 42
+
+train_test_ratio: 0.8
+valid_ratio: 0.1
+
+labels:
+  glioma_tumor: 0
+  meningioma_tumor: 1
+  pituitary_tumor: 2
+  normal: 3
+
