@@ -459,12 +459,24 @@ def train_and_eval(data_info, params, fn_dict, net_list, lr_schedule=None, run_t
         dict containing test results.
     """
 
-    os.environ['TF_SYNC_ON_FINISH'] = '0'
-    os.environ['TF_ENABLE_WINOGRAD_NONFUSED'] = '1'
-    if params['log_level'] == 'INFO':
-        tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
-    elif params['log_level'] == 'DEBUG':
-        tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
+    # os.environ['TF_SYNC_ON_FINISH'] = '0'
+    # os.environ['TF_ENABLE_WINOGRAD_NONFUSED'] = '1'
+    # if params['log_level'] == 'INFO':
+    #     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
+    # elif params['log_level'] == 'DEBUG':
+    #     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
+
+    os.environ['CUDA_VISIBLE_DEVICES'] = f"{params['gpu_selected']}"
+    physical_devices = tf.config.list_physical_devices('GPU')
+    try:
+        tf.config.set_logical_device_configuration(
+            physical_devices[0],
+            [tf.config.LogicalDeviceConfiguration(memory_limit=params['memory_per_thread'])])
+        logical_devices = tf.config.list_logical_devices('GPU')
+    except:
+        print('Failed to limit GPU RAM size')
+        # Invalid device or cannot modify logical devices once initialized.
+        pass
 
     # Session configuration.
     sess_config = tf.compat.v1.ConfigProto(allow_soft_placement=True,
@@ -494,36 +506,24 @@ def train_and_eval(data_info, params, fn_dict, net_list, lr_schedule=None, run_t
 
     train_input_fn = functools.partial(input.input_fn, data_info=data_info,
                                        dataset_type='train',
-                                       batch_size=hparams.batch_size,
-                                       data_aug=hparams.data_augmentation,
-                                       subtract_mean=hparams.subtract_mean,
-                                       process_for_training=True,
-                                       threads=hparams.threads)
+                                       params=hparams,
+                                       process_for_training=True)
     eval_input_fns = dict()
 
     eval_input_fns['valid'] = functools.partial(input.input_fn, data_info=data_info,
                                                 dataset_type='valid',
-                                                batch_size=hparams.eval_batch_size,
-                                                data_aug=False,
-                                                subtract_mean=hparams.subtract_mean,
-                                                process_for_training=False,
-                                                threads=hparams.threads)
+                                                params=hparams,
+                                                process_for_training=False)
 
     test_input_fn = functools.partial(input.input_fn, data_info=data_info,
                                       dataset_type='test',
-                                      batch_size=hparams.eval_batch_size,
-                                      data_aug=False,
-                                      subtract_mean=hparams.subtract_mean,
-                                      process_for_training=False,
-                                      threads=hparams.threads)
+                                      params=hparams,
+                                      process_for_training=False)
     if run_train_eval:
         eval_input_fns['train'] = functools.partial(input.input_fn, data_info=data_info,
                                                     dataset_type='train',
-                                                    batch_size=hparams.eval_batch_size,
-                                                    data_aug=False,
-                                                    subtract_mean=hparams.subtract_mean,
-                                                    process_for_training=False,
-                                                    threads=hparams.threads)
+                                                    params=hparams,
+                                                    process_for_training=False)
 
     tf.compat.v1.logging.log(level=tf.compat.v1.logging.get_verbosity(), msg='Training model ...')
 
