@@ -41,6 +41,7 @@ train:
     # Dataset
     dataset: UserDefined
     dataset_path: dataset/mri_brain_tumor/data-tfr_800
+    retrain_dataset_path: dataset/mri_brain_tumor/data-tfr
     dataset_classes: 4
     image_height: 256
     image_width: 256

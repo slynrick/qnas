@@ -41,14 +41,7 @@ train:
     # Dataset
     dataset: UserDefined
     dataset_path: cifar10/cifar_tfr_10000
-    dataset_classes: 10
-    image_height: 32
-    image_width: 32
-    image_channels: 3
-    image_mean_filename: cifar_train_mean.npz
-    image_padding: 4
-
-
+    retrain_dataset_path: cifar10/cifar_tfr
 
     data_augmentation: True
     subtract_mean: True

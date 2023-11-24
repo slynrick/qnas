@@ -216,7 +216,7 @@ It is also possible to retrain the network with training schemes defined in the 
   `my_exp_config2` using the `cosine` scheme, one can run:
 
 ```shell script
-python run_retrain.py --experiment_path my_exp_config2 --data_path cifar10/cifar_tfr --log_level INFO --batch_size 256 --eval_batch_size 1000 --retrain_folder train_cosine --threads 8 --lr_schedule cosine --run_train_eval
+python run_retrain.py --experiment_path my_exp_config2 --log_level INFO --batch_size 256 --eval_batch_size 1000 --retrain_folder train_cosine --threads 8 --lr_schedule cosine --run_train_eval
 ```
 
 The script `run_retrain.py` also supports retraining any individual saved in `data_QNAS.pkl`: use the

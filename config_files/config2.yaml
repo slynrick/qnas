@@ -37,6 +37,9 @@ train:
 
     # Dataset
     dataset: Cifar10
+    dataset_path: cifar10/cifar_tfr_10000
+    retrain_dataset_path: cifar10/cifar_tfr
+
     data_augmentation: True
     subtract_mean: True
 

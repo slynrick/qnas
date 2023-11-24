@@ -106,12 +106,13 @@ class ConfigParameters(object):
                                ('optimizer', str),
                                ('dataset', str),
                                ('dataset_path', str),
-                               ('dataset_classes', int),
-                               ('image_height', int),
-                               ('image_width', int),
-                               ('image_channels', int),
-                               ('image_mean_filename', str),
-                               ('image_padding', int),
+                               ('retrain_dataset_path', str),
+                               ('dataset_classes', int, 'dataset', 'UserDefined'),
+                               ('image_height', int, 'dataset', 'UserDefined'),
+                               ('image_width', int, 'dataset', 'UserDefined'),
+                               ('image_channels', int, 'dataset', 'UserDefined'),
+                               ('image_mean_filename', str, 'dataset', 'UserDefined'),
+                               ('image_padding', int, 'dataset', 'UserDefined'),
                                ('data_augmentation', bool),
                                ('subtract_mean', bool),
                                ('save_checkpoints_epochs', int),
@@ -123,6 +124,10 @@ class ConfigParameters(object):
         for config in vars_dict.keys():
             for item in vars_dict[config]:
                 var = config_file[config].get(item[0])
+                if len(item) > 2:
+                    var2 = config_file[config].get(item[2])
+                    if var2 != item[3]:
+                        continue
                 if var is None:
                     raise KeyError(f"Variable \"{config}:{item[0]}\" not found in "
                                    f"configuration file {self.args['config_file']}")
@@ -253,6 +258,7 @@ class ConfigParameters(object):
 
         self.train_spec['experiment_path'] = os.path.join(self.train_spec['experiment_path'],
                                                           self.args['retrain_folder'])
+        
         del self.args['retrain_folder']
 
     def _get_common_params(self):
@@ -292,7 +298,9 @@ class ConfigParameters(object):
 
         name = self.train_spec['dataset'] + 'Info'
 
-        return getattr(input, name)(self.train_spec['dataset_path'],  train_params=self.train_spec, validation=True)
+        dataset_path = self.train_spec['retrain_dataset_path'] if 'retrain' else self.train_spec['dataset_path']
+
+        return getattr(input, name)(dataset_path,  train_params=self.train_spec, validation=True)
 
     def load_old_params(self):
         """ Load parameters from *self.files_spec['previous_QNAS_params']* and replace
