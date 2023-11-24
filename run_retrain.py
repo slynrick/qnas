@@ -33,6 +33,9 @@ def main(**args):
         logger.info(f"Overriding train parameters to use special scheme "
                     f"'{args['lr_schedule']}' ...")
         config.override_train_params(special_params)
+     
+    config['train']['dataset_path'] = args['data_path']
+    config.get_parameters()
 
     # It is important to merge the dicts with the evolved_params first, as they need to be
     # overwritten in case we are using one of the special train schemes.
@@ -57,6 +60,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--experiment_path', type=str, required=True,
                         help='Directory where the evolved network logs are.')
+    parser.add_argument('--data_path', type=str, required=True, help='Path to input data.')
     parser.add_argument('--retrain_folder', type=str, default='retrain',
                         help='Name of the folder with retrain model files that will be saved '
                              'inside *experiment_path*.')
